@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, AlertTriangle, CheckCircle, Ticket, Heart } from 'lucide-react';
-import { EVENT_START_DATE } from '../mockData/deals';
+import { EVENT_START_DATE, PRODUCT_IMAGES } from '../mockData/deals';
 
 export default function TicketCard({ deal, onClaim, onViewDetail, onToggleInterest }) {
   const [timeLeft, setTimeLeft] = useState('');
@@ -39,11 +39,13 @@ export default function TicketCard({ deal, onClaim, onViewDetail, onToggleIntere
 
   const isSoldOut = deal.stock_remaining === 0 || isExpired;
   const isLowStock = deal.stock_remaining > 0 && deal.stock_remaining <= 5;
+  const imageUrl = deal.image_url || PRODUCT_IMAGES[deal.brand];
 
   return (
     <div className={`ticket-card ${isSoldOut ? 'sold-out' : ''}`}>
       {/* Left side: Brand, Title, Description, Price, Interest Counter */}
       <div className="ticket-info">
+        {imageUrl && <img src={imageUrl} alt={deal.title} style={{ display: 'block', width: '100%', height: '180px', objectFit: 'contain', marginBottom: '14px', backgroundColor: '#ffffff', borderRadius: 'var(--radius)' }} />}
         <div>
           {/* Brand Tag & Badges */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>

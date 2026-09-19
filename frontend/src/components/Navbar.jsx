@@ -7,6 +7,7 @@ export default function Navbar({
   interestedCount, 
   currentUser, 
   onLoginClick, 
+  onAdminLoginClick,
   onRegisterClick, 
   onLogout 
 }) {
@@ -107,17 +108,17 @@ export default function Navbar({
         </nav>
 
         {/* User Auth Section */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+        <div className="navbar-auth-actions">
           {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="navbar-user-actions">
+              <div className="navbar-user-details">
                 <User size={16} color="var(--color-ticket-cream)" />
                 <span style={{ fontSize: '14px', color: 'var(--color-ticket-cream)', fontWeight: '600' }}>
                   {currentUser.name} {currentUser.is_admin && <span style={{ color: 'var(--color-stamp-amber)', fontSize: '11px' }}>(Admin)</span>}
                 </span>
               </div>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-secondary navbar-auth-button" 
                 style={{ color: 'var(--color-ticket-cream)', borderColor: 'var(--color-ticket-cream)', padding: '6px 12px', fontSize: '13px' }}
                 onClick={onLogout}
               >
@@ -128,15 +129,18 @@ export default function Navbar({
           ) : (
             <>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-secondary navbar-auth-button" 
                 style={{ color: 'var(--color-ticket-cream)', borderColor: 'var(--color-ticket-cream)', padding: '6px 14px', fontSize: '14px' }}
                 onClick={onLoginClick}
               >
                 <LogIn size={16} />
-                Log In
+                Sign In
+              </button>
+              <button className="btn btn-secondary navbar-auth-button" style={{ color: 'var(--color-stamp-amber)', borderColor: 'var(--color-stamp-amber)', padding: '6px 14px', fontSize: '14px' }} onClick={onAdminLoginClick}>
+                <LayoutDashboard size={16} /> Admin Login
               </button>
               <button 
-                className="btn btn-primary" 
+                className="btn btn-primary navbar-auth-button" 
                 style={{ padding: '6px 14px', fontSize: '14px' }}
                 onClick={onRegisterClick}
               >

@@ -4,6 +4,7 @@ export const createClaimRecord = async (userId, dealId, claimCode) => {
   const sql = `
     INSERT INTO claims (user_id, deal_id, claim_code)
     VALUES ($1, $2, $3)
+    RETURNING id
   `;
   const result = await query(sql, [userId, dealId, claimCode]);
   return { id: result.lastID || result.rows[0]?.id, user_id: userId, deal_id: dealId, claim_code: claimCode };

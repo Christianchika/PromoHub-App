@@ -1,4 +1,4 @@
-import { createUser, findUserByEmail } from '../models/userModel.js';
+import { createUser, findUserByEmail, updateLastLogin } from '../models/userModel.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -17,9 +17,7 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
 
-    // Determine if admin (if email contains 'admin')
-    const isAdmin = email.toLowerCase().includes('admin');
-    const user = await createUser({ name, email, password, is_admin: isAdmin });
+    const user = await createUser({ name, email, password, is_admin: false });
 
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, is_admin: user.is_admin },
@@ -55,6 +53,8 @@ export const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
+
+    await updateLastLogin(user.id);
 
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, is_admin: Boolean(user.is_admin) },

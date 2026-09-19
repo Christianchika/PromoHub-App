@@ -1,4 +1,4 @@
-import { getAllDeals, getDealById, claimDealAtomic } from '../models/dealModel.js';
+import { getAllDeals, getDealById, claimDealAtomic, restoreDealStock } from '../models/dealModel.js';
 import { createClaimRecord } from '../models/claimModel.js';
 
 export const getDeals = async (req, res) => {
@@ -29,8 +29,11 @@ export const getSingleDeal = async (req, res) => {
  * Handles high-concurrency stock checks and reservations in a single safe SQL step.
  */
 export const claimDeal = async (req, res) => {
+  let dealId;
+  let stockReserved = false;
+
   try {
-    const dealId = req.params.id;
+    dealId = req.params.id;
     const userId = req.user.id;
 
     // Execute single-step atomic stock reduction
@@ -39,6 +42,7 @@ export const claimDeal = async (req, res) => {
     if (!updatedDeal) {
       return res.status(400).json({ error: 'Deal is sold out or unavailable.' });
     }
+    stockReserved = true;
 
     // Generate unique alphanumeric claim code
     const randomCode = 'CLAIM-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -53,6 +57,11 @@ export const claimDeal = async (req, res) => {
       claimedAt: new Date().toISOString()
     });
   } catch (err) {
+    if (stockReserved) {
+      await restoreDealStock(dealId).catch(restoreError => {
+        console.error('Unable to restore reserved stock:', restoreError);
+      });
+    }
     console.error('Claim deal error:', err);
     return res.status(500).json({ error: 'Server error claiming deal.' });
   }

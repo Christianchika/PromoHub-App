@@ -12,6 +12,9 @@ export const verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if (!decoded.id) {
+      return res.status(401).json({ error: 'Invalid authentication token. Please log in again.' });
+    }
     req.user = decoded;
     next();
   } catch (err) {

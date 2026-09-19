@@ -1,39 +1,29 @@
 import React, { useState } from 'react';
 import { Ticket, LogIn, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 
-export default function Login({ onLoginSuccess, onSwitchToRegister }) {
+export default function Login({ onLoginSuccess, onSwitchToRegister, onSwitchToUserLogin, isAdminLogin = false }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-
-    setTimeout(() => {
-      if (email && password) {
-        const isAdmin = email.toLowerCase().includes('admin');
-        const user = {
-          name: email.split('@')[0],
-          email: email,
-          is_admin: isAdmin
-        };
-        setIsLoading(false);
-        if (onLoginSuccess) {
-          onLoginSuccess(user);
-        }
-      } else {
-        setIsLoading(false);
-        setError('Please fill in both email and password.');
-      }
-    }, 600);
+    if (!email || !password) { setError('Please fill in both email and password.'); return; }
+    try {
+      const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to log in.');
+      if (isAdminLogin !== Boolean(data.user.is_admin)) throw new Error(isAdminLogin ? 'Administrator credentials required.' : 'Use Admin Login for administrator access.');
+      onLoginSuccess?.({ ...data.user, token: data.token });
+    } catch (loginError) { setError(loginError.message); }
+    finally { setIsLoading(false); }
   };
 
   return (
-    <div style={{ maxWidth: '480px', margin: '40px auto' }}>
-      <div style={{
+    <div className="auth-page">
+      <div className="auth-card" style={{
         backgroundColor: 'var(--color-ticket-cream)',
         border: '3px solid var(--color-ink-navy)',
         borderRadius: 'var(--radius)',
@@ -60,9 +50,9 @@ export default function Login({ onLoginSuccess, onSwitchToRegister }) {
           </div>
           <div>
             <span className="mono-number" style={{ fontSize: '11px', color: 'var(--color-stamp-amber)', textTransform: 'uppercase', fontWeight: '700' }}>
-              MEMBER ACCESS STUB
+              {isAdminLogin ? 'ADMIN ACCESS STUB' : 'MEMBER ACCESS STUB'}
             </span>
-            <h1 style={{ fontSize: '26px', lineHeight: '1.1' }}>User Login</h1>
+            <h1 style={{ fontSize: '26px', lineHeight: '1.1' }}>{isAdminLogin ? 'Admin Login' : 'User Login'}</h1>
           </div>
         </div>
 
@@ -103,7 +93,7 @@ export default function Login({ onLoginSuccess, onSwitchToRegister }) {
               <label style={{ fontSize: '14px', fontWeight: '700' }}>
                 Password
               </label>
-              <span className="text-muted" style={{ fontSize: '12px' }}>Use "admin@promohub.com" for Admin</span>
+              <span className="text-muted" style={{ fontSize: '12px' }}>{isAdminLogin ? 'Administrator account access' : 'User account access'}</span>
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Lock size={18} color="var(--color-slate-grey)" style={{ position: 'absolute', left: '12px' }} />
@@ -133,11 +123,11 @@ export default function Login({ onLoginSuccess, onSwitchToRegister }) {
             disabled={isLoading}
           >
             <LogIn size={18} />
-            {isLoading ? 'Signing In...' : 'Log In to PromoHub'}
+            {isLoading ? 'Signing In...' : isAdminLogin ? 'Log In to Admin Console' : 'Sign In to PromoHub'}
           </button>
         </form>
 
-        <div style={{
+        {!isAdminLogin ? <div style={{
           textAlign: 'center',
           paddingTop: '16px',
           borderTop: '1px solid rgba(28,37,65,0.1)',
@@ -157,7 +147,7 @@ export default function Login({ onLoginSuccess, onSwitchToRegister }) {
           >
             Sign Up Now
           </button>
-        </div>
+        </div> : <div style={{ textAlign: 'center', paddingTop: '16px', borderTop: '1px solid rgba(28,37,65,0.1)', fontSize: '14px' }}><span className="text-muted">Need a user account? </span><button onClick={onSwitchToUserLogin} style={{ background: 'none', border: 'none', color: 'var(--color-flame-coral)', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}>User Login</button></div>}
       </div>
     </div>
   );

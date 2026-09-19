@@ -3,6 +3,7 @@ import sqlite3 from 'sqlite3';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -13,6 +14,7 @@ const __dirname = path.dirname(__filename);
 
 let queryFn;
 let isPostgres = false;
+export let databaseReady = Promise.resolve();
 
 // Check if PostgreSQL connection URL is provided
 if (process.env.DATABASE_URL) {
@@ -24,6 +26,8 @@ if (process.env.DATABASE_URL) {
 
   queryFn = (text, params) => pool.query(text, params);
   isPostgres = true;
+
+  databaseReady = initializePostgres(pool);
 } else {
   console.log('⚡ Using Local SQLite Fallback Database (backend/promohub.db)');
   const dbPath = path.join(__dirname, '../../promohub.db');
@@ -38,9 +42,12 @@ if (process.env.DATABASE_URL) {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         is_admin INTEGER DEFAULT 0,
+        last_login DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    sqliteDb.run(`ALTER TABLE users ADD COLUMN last_login DATETIME`, () => {});
 
     sqliteDb.run(`
       CREATE TABLE IF NOT EXISTS deals (
@@ -73,6 +80,13 @@ if (process.env.DATABASE_URL) {
       )
     `);
 
+    const eventEndTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    sqliteDb.run(
+      `UPDATE deals SET end_time = ? WHERE stock_remaining > 0 AND end_time <= ?`,
+      [eventEndTime, now]
+    );
+
     // Seed default Admin User if not exists
     const hashedAdminPw = await bcrypt.hash('admin123', 10);
     sqliteDb.run(
@@ -85,11 +99,11 @@ if (process.env.DATABASE_URL) {
       if (!err && row.count === 0) {
         const eventEndTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
         const sampleDeals = [
-          ['Sony', 'Sony WH-1000XM5 Wireless Headphones', 'Industry-leading noise canceling headphones with 30h battery.', 'Audio', 149.99, 399.99, 50, 3, eventEndTime, 1, 2480],
-          ['Apple', 'Apple Watch Series 9 GPS 45mm', 'Always-on Retina display with S9 chip and health tracking.', 'Wearables', 199.00, 429.00, 30, 5, eventEndTime, 1, 4120],
+          ['Sony', 'Sony WH-1000XM5 Wireless Headphones', 'Industry-leading noise canceling headphones with 30h battery.', 'Audio', 149.99, 399.99, 50, 50, eventEndTime, 1, 2480],
+          ['Apple', 'Apple Watch Series 9 GPS 45mm', 'Always-on Retina display with S9 chip and health tracking.', 'Wearables', 199.00, 429.00, 30, 30, eventEndTime, 1, 4120],
           ['Keychron', 'Keychron Q1 Pro Wireless Keyboard', 'Full-aluminum mechanical keyboard with RGB backlight.', 'Peripherals', 69.50, 199.00, 100, 42, eventEndTime, 1, 1890],
           ['Anker', 'Anker 737 Power Bank (PowerCore 24K)', '24,000mAh 140W fast portable charger with display.', 'Accessories', 49.99, 149.99, 80, 18, eventEndTime, 0, 3210],
-          ['Samsung', 'Samsung T7 Shield 2TB Portable SSD', 'Rugged external SSD with 1,050MB/s read speeds.', 'Storage', 79.99, 219.99, 40, 2, eventEndTime, 1, 1560]
+          ['Samsung', 'Samsung T7 Shield 2TB Portable SSD', 'Rugged external SSD with 1,050MB/s read speeds.', 'Storage', 79.99, 219.99, 40, 40, eventEndTime, 1, 1560]
         ];
 
         const stmt = sqliteDb.prepare(`
@@ -125,6 +139,52 @@ if (process.env.DATABASE_URL) {
       }
     });
   };
+}
+
+async function initializePostgres(pool) {
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  const schema = await fs.readFile(schemaPath, 'utf8');
+  await pool.query(schema);
+  await pool.query('ALTER TABLE deals ADD COLUMN IF NOT EXISTS image_url TEXT');
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP');
+  await pool.query('CREATE TABLE IF NOT EXISTS app_migrations (name VARCHAR(100) PRIMARY KEY)');
+  const eventEndTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  await pool.query(
+    'UPDATE deals SET end_time = $1 WHERE stock_remaining > 0 AND end_time <= CURRENT_TIMESTAMP',
+    [eventEndTime]
+  );
+  const stockReset = await pool.query(`INSERT INTO app_migrations (name) VALUES ('restore-full-stock') ON CONFLICT (name) DO NOTHING RETURNING name`);
+  if (stockReset.rowCount > 0) await pool.query('UPDATE deals SET stock_remaining = total_stock');
+  const hashedAdminPw = await bcrypt.hash('admin123', 10);
+  await pool.query(
+    `INSERT INTO users (name, email, password, is_admin)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO NOTHING`,
+    ['System Admin', 'admin@promohub.com', hashedAdminPw, true]
+  );
+
+  const dealCount = await pool.query('SELECT COUNT(*)::int AS count FROM deals');
+  if (dealCount.rows[0].count === 0) {
+    const eventEndTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const sampleDeals = [
+      ['Sony', 'Sony WH-1000XM5 Wireless Headphones', 'Industry-leading noise canceling headphones with 30h battery.', 'Audio', 149.99, 399.99, 50, 50, eventEndTime, true, 2480],
+      ['Apple', 'Apple Watch Series 9 GPS 45mm', 'Always-on Retina display with S9 chip and health tracking.', 'Wearables', 199.00, 429.00, 30, 30, eventEndTime, true, 4120],
+      ['Keychron', 'Keychron Q1 Pro Wireless Keyboard', 'Full-aluminum mechanical keyboard with RGB backlight.', 'Peripherals', 69.50, 199.00, 100, 42, eventEndTime, true, 1890],
+      ['Anker', 'Anker 737 Power Bank (PowerCore 24K)', '24,000mAh 140W fast portable charger with display.', 'Accessories', 49.99, 149.99, 80, 18, eventEndTime, false, 3210],
+      ['Samsung', 'Samsung T7 Shield 2TB Portable SSD', 'Rugged external SSD with 1,050MB/s read speeds.', 'Storage', 79.99, 219.99, 40, 40, eventEndTime, true, 1560]
+    ];
+
+    for (const deal of sampleDeals) {
+      await pool.query(
+        `INSERT INTO deals
+          (brand, title, description, category, price, original_price, total_stock, stock_remaining, end_time, is_featured, interested_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        deal
+      );
+    }
+  }
+
+  console.log('✅ PostgreSQL schema and demo data are ready');
 }
 
 export const query = (text, params) => queryFn(text, params);

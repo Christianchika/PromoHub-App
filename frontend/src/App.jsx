@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import DealsList from './pages/DealsList';
@@ -6,18 +6,59 @@ import DealDetail from './pages/DealDetail';
 import HowItWorks from './pages/HowItWorks';
 import InterestedDeals from './pages/InterestedDeals';
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 import Register from './pages/Register';
 import MyClaims from './pages/MyClaims';
 import AdminDashboard from './pages/AdminDashboard';
 import { MOCK_DEALS } from './mockData/deals';
 import './styles/global.css';
 
+const AUTH_STORAGE_KEY = 'promohub.currentUser';
+
+const getStoredUser = () => {
+  try {
+    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+};
+
 export default function App() {
   const [deals, setDeals] = useState(MOCK_DEALS);
-  const [activeTab, setActiveTab] = useState('deals'); // 'deals', 'interested', 'my-claims', 'admin', 'login', 'register', 'how-it-works', 'detail'
+  const [currentUser, setCurrentUser] = useState(getStoredUser); // { name, email, is_admin, token }
+  const [activeTab, setActiveTab] = useState(() => getStoredUser()?.is_admin ? 'admin' : 'deals'); // 'deals', 'interested', 'my-claims', 'admin', 'login', 'admin-login', 'register', 'how-it-works', 'detail'
   const [selectedDeal, setSelectedDeal] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null); // { name, email, is_admin }
   const [userClaims, setUserClaims] = useState([]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetch('/api/deals')
+      .then(async response => {
+        if (!response.ok) throw new Error('Unable to load deals.');
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) throw new Error('Deals service returned an invalid response.');
+        return response.json();
+      })
+      .then(remoteDeals => setDeals(remoteDeals.map(deal => ({
+        ...deal,
+        price: Number(deal.price),
+        original_price: deal.original_price == null ? null : Number(deal.original_price),
+        total_stock: Number(deal.total_stock),
+        stock_remaining: Number(deal.stock_remaining),
+        interested_count: Number(deal.interested_count || 0),
+        is_interested: false
+      }))))
+      .catch(() => {});
+  }, []);
 
   // Handle toggling user interest for a deal
   const handleToggleInterest = (dealId) => {
@@ -37,18 +78,28 @@ export default function App() {
   };
 
   // Handle claim voucher addition
-  const handleClaimSuccess = (dealId) => {
+  const handleClaimSuccess = (dealId, claimResponse) => {
     const targetDeal = deals.find(d => d.id === dealId);
-    if (targetDeal) {
-      const randomCode = 'CLAIM-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    if (targetDeal && claimResponse?.deal) {
+      const updatedDeal = {
+        ...claimResponse.deal,
+        price: Number(claimResponse.deal.price),
+        original_price: claimResponse.deal.original_price == null ? null : Number(claimResponse.deal.original_price),
+        total_stock: Number(claimResponse.deal.total_stock),
+        stock_remaining: Number(claimResponse.deal.stock_remaining),
+        interested_count: Number(claimResponse.deal.interested_count || 0),
+        is_interested: targetDeal.is_interested
+      };
+      setDeals(prevDeals => prevDeals.map(deal => deal.id === dealId ? updatedDeal : deal));
+
       const newClaim = {
         id: 'c_' + Date.now(),
-        claim_code: randomCode,
+        claim_code: claimResponse.claimCode,
         deal_title: targetDeal.title,
         brand: targetDeal.brand,
         price: targetDeal.price,
         original_price: targetDeal.original_price,
-        claimed_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        claimed_at: claimResponse.claimedAt,
         status: 'ACTIVE'
       };
       setUserClaims(prev => [newClaim, ...prev]);
@@ -93,6 +144,7 @@ export default function App() {
         interestedCount={interestedDealsCount}
         currentUser={currentUser}
         onLoginClick={() => setActiveTab('login')}
+        onAdminLoginClick={() => setActiveTab('admin-login')}
         onRegisterClick={() => setActiveTab('register')}
         onLogout={handleLogout}
       />
@@ -104,6 +156,7 @@ export default function App() {
             setDeals={setDeals}
             onViewDetail={handleViewDetail}
             onToggleInterest={handleToggleInterest}
+            authToken={currentUser?.token}
           />
         )}
 
@@ -125,11 +178,9 @@ export default function App() {
         )}
 
         {activeTab === 'admin' && (
-          <AdminDashboard 
-            deals={deals}
-            setDeals={setDeals}
-            userClaims={userClaims}
-          />
+          currentUser?.is_admin ? (
+            <AdminDashboard deals={deals} setDeals={setDeals} userClaims={userClaims} authToken={currentUser.token} />
+          ) : <AdminLogin onLoginSuccess={handleLoginSuccess} onSwitchToUserLogin={() => setActiveTab('login')} />
         )}
 
         {activeTab === 'login' && (
@@ -137,6 +188,10 @@ export default function App() {
             onLoginSuccess={handleLoginSuccess}
             onSwitchToRegister={() => setActiveTab('register')}
           />
+        )}
+
+        {activeTab === 'admin-login' && (
+          <AdminLogin onLoginSuccess={handleLoginSuccess} onSwitchToUserLogin={() => setActiveTab('login')} />
         )}
 
         {activeTab === 'register' && (
@@ -151,6 +206,7 @@ export default function App() {
             deal={deals.find(d => d.id === selectedDeal.id) || selectedDeal} 
             onBack={handleBackToDeals}
             onClaimSuccess={handleClaimSuccess}
+            authToken={currentUser?.token}
           />
         )}
 

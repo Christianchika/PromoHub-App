@@ -1,30 +1,43 @@
 import React, { useState } from 'react';
 import { X, Ticket, CheckCircle2, Copy, AlertCircle, Heart } from 'lucide-react';
 
-export default function ClaimModal({ deal, onClose, onConfirmClaim }) {
+export default function ClaimModal({ deal, onClose, onConfirmClaim, authToken }) {
   const [copied, setCopied] = useState(false);
   const [claimResult, setClaimResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleClaim = () => {
+  const handleClaim = async () => {
+    if (!authToken) {
+      setError('Please sign in before claiming a deal.');
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      // Simulate backend reservation & unique claim voucher code generation
-      const randomCode = 'CLAIM-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    setError('');
+
+    try {
+      const response = await fetch(`/api/deals/${deal.id}/claim`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to claim this deal.');
+
       const result = {
-        success: true,
-        claimCode: randomCode,
-        claimedAt: new Date().toLocaleTimeString(),
+        claimCode: data.claimCode,
+        claimedAt: data.claimedAt,
         dealTitle: deal.title,
         brand: deal.brand,
         price: deal.price
       };
       setClaimResult(result);
+      onConfirmClaim?.(deal.id, data);
+    } catch (claimError) {
+      setError(claimError.message);
+    } finally {
       setIsSubmitting(false);
-      if (onConfirmClaim) {
-        onConfirmClaim(deal.id);
-      }
-    }, 600);
+    }
   };
 
   const handleCopyCode = () => {
@@ -114,6 +127,13 @@ export default function ClaimModal({ deal, onClose, onConfirmClaim }) {
             <p style={{ fontSize: '14px', marginBottom: '20px', color: 'var(--color-slate-grey)' }}>
               Click below to claim your discount ticket stub. You will receive an instant unique voucher code to redeem at checkout.
             </p>
+
+            {error && (
+              <div className="alert-banner alert-error" style={{ fontSize: '14px', marginBottom: '16px' }}>
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={onClose}>

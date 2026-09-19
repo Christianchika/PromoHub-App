@@ -34,10 +34,17 @@ export const claimDealAtomic = async (dealId) => {
   return await getDealById(dealId);
 };
 
+export const restoreDealStock = async (dealId) => {
+  await query(
+    'UPDATE deals SET stock_remaining = stock_remaining + 1 WHERE id = $1',
+    [dealId]
+  );
+};
+
 export const createDeal = async (deal) => {
   const sql = `
-    INSERT INTO deals (brand, title, description, category, price, original_price, total_stock, stock_remaining, end_time, is_featured, interested_count)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    INSERT INTO deals (brand, title, description, category, price, original_price, total_stock, stock_remaining, end_time, is_featured, interested_count, image_url)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
   `;
   const params = [
     deal.brand,
@@ -50,7 +57,8 @@ export const createDeal = async (deal) => {
     deal.total_stock, // Initial remaining stock equals total
     deal.end_time,
     deal.is_featured ? 1 : 0,
-    deal.interested_count || 0
+    deal.interested_count || 0,
+    deal.image_url || null
   ];
 
   const result = await query(sql, params);
@@ -61,8 +69,8 @@ export const createDeal = async (deal) => {
 export const updateDeal = async (id, deal) => {
   const sql = `
     UPDATE deals
-    SET brand = $1, title = $2, description = $3, category = $4, price = $5, original_price = $6, total_stock = $7, is_featured = $8
-    WHERE id = $9
+    SET brand = $1, title = $2, description = $3, category = $4, price = $5, original_price = $6, total_stock = $7, is_featured = $8, image_url = $9
+    WHERE id = $10
   `;
   const params = [
     deal.brand,
@@ -73,6 +81,7 @@ export const updateDeal = async (id, deal) => {
     deal.original_price,
     deal.total_stock,
     deal.is_featured ? 1 : 0,
+    deal.image_url || null,
     id
   ];
 

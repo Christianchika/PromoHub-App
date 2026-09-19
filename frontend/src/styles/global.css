@@ -381,6 +381,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .navbar-brand {
@@ -418,6 +419,29 @@ p {
 
 .nav-link:hover, .nav-link.active {
   color: var(--color-flame-coral);
+}
+
+.navbar-auth-actions,
+.navbar-user-actions,
+.navbar-user-details {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-auth-actions {
+  gap: var(--space-sm);
+}
+
+.navbar-user-actions {
+  gap: 12px;
+}
+
+.navbar-user-details {
+  gap: 6px;
+}
+
+.navbar-auth-button {
+  white-space: nowrap;
 }
 
 /* Hero Section */
@@ -505,4 +529,132 @@ p {
 .footer p {
   color: rgba(255, 248, 237, 0.7);
   font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .navbar {
+    padding: var(--space-md);
+  }
+
+  .navbar-inner {
+    flex-wrap: wrap;
+  }
+
+  .navbar-nav {
+    order: 3;
+    flex: 1 0 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm) var(--space-md);
+  }
+}
+
+@media (max-width: 600px) {
+  .main-content {
+    padding: var(--space-md) var(--space-sm);
+  }
+
+  .navbar-brand {
+    min-width: 0;
+  }
+
+  .navbar-logo-text {
+    font-size: 20px;
+  }
+
+  .navbar-auth-actions {
+    gap: 6px;
+  }
+
+  .navbar-auth-button {
+    min-height: 40px;
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+  }
+
+  .navbar-auth-button svg {
+    display: none;
+  }
+
+  .navbar-user-details {
+    display: none;
+  }
+
+  .navbar-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .navbar nav {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .nav-link {
+    white-space: nowrap;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  .hero-banner {
+    padding: var(--space-xl) var(--space-md);
+  }
+
+  .hero-banner h1 {
+    font-size: 26px;
+  }
+
+  .hero-banner p {
+    font-size: 16px;
+  }
+
+  .section-header {
+    align-items: stretch;
+  }
+
+  .section-header > div:last-child,
+  .section-header > div:last-child > div,
+  .section-header input,
+  .section-header select {
+    width: 100%;
+  }
+
+  .section-header > div:last-child {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .section-header > div:last-child > div:last-child {
+    overflow-x: auto;
+  }
+
+  .section-header > div:last-child > div:last-child button {
+    flex: 0 0 auto;
+  }
+
+  .auth-page {
+    margin: var(--space-lg) auto;
+  }
+
+  .auth-card {
+    padding: var(--space-lg) !important;
+  }
+
+  .auth-card h1 {
+    font-size: 22px !important;
+  }
+
+  .auth-card form input {
+    min-height: 46px;
+    font-size: 16px !important;
+  }
+
+  .footer {
+    padding: var(--space-lg) var(--space-md);
+  }
 }

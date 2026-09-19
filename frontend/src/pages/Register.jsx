@@ -8,33 +8,22 @@ export default function Register({ onRegisterSuccess, onSwitchToLogin }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-
-    setTimeout(() => {
-      if (name && email && password) {
-        const isAdmin = email.toLowerCase().includes('admin');
-        const user = {
-          name: name,
-          email: email,
-          is_admin: isAdmin
-        };
-        setIsLoading(false);
-        if (onRegisterSuccess) {
-          onRegisterSuccess(user);
-        }
-      } else {
-        setIsLoading(false);
-        setError('Please fill in all fields.');
-      }
-    }, 600);
+    if (!name || !email || !password) { setError('Please fill in all fields.'); return; }
+    try {
+      const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to create account.');
+      onRegisterSuccess?.({ ...data.user, token: data.token });
+    } catch (registerError) { setError(registerError.message); }
+    finally { setIsLoading(false); }
   };
 
   return (
-    <div style={{ maxWidth: '480px', margin: '40px auto' }}>
-      <div style={{
+    <div className="auth-page">
+      <div className="auth-card" style={{
         backgroundColor: 'var(--color-ticket-cream)',
         border: '3px solid var(--color-ink-navy)',
         borderRadius: 'var(--radius)',
@@ -179,7 +168,7 @@ export default function Register({ onRegisterSuccess, onSwitchToLogin }) {
               textDecoration: 'underline'
             }}
           >
-            Log In Here
+            Sign In Here
           </button>
         </div>
       </div>

@@ -1,6 +1,14 @@
 // Master Flash Sale Event Target Date (Set to 14 Days to D-Day)
 export const EVENT_START_DATE = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
+export const PRODUCT_IMAGES = {
+  Sony: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80',
+  Apple: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=900&q=80',
+  Keychron: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=900&q=80',
+  Anker: 'https://images.unsplash.com/photo-1609592424853-ef3e5f5f7e64?auto=format&fit=crop&w=900&q=80',
+  Samsung: 'https://images.unsplash.com/photo-1597872200969-673c2d4f7f1a?auto=format&fit=crop&w=900&q=80'
+};
+
 export const MOCK_DEALS = [
   {
     id: 1,

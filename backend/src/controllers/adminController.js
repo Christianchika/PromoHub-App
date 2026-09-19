@@ -1,9 +1,15 @@
 import { createDeal, updateDeal, deleteDeal, getAllDeals } from '../models/dealModel.js';
 import { getAllClaimsLedger } from '../models/claimModel.js';
+import { getAllUsers } from '../models/userModel.js';
+
+export const adminGetUsers = async (req, res) => {
+  try { return res.json(await getAllUsers()); }
+  catch (err) { console.error('Admin get users error:', err); return res.status(500).json({ error: 'Server error fetching registered users.' }); }
+};
 
 export const adminAddDeal = async (req, res) => {
   try {
-    const { brand, title, description, category, price, original_price, total_stock, end_time, is_featured } = req.body;
+    const { brand, title, description, category, price, original_price, total_stock, end_time, is_featured, image_url } = req.body;
 
     if (!brand || !title || !description || !price || !total_stock || !end_time) {
       return res.status(400).json({ error: 'Brand, title, description, price, total_stock, and end_time are required.' });
@@ -18,7 +24,8 @@ export const adminAddDeal = async (req, res) => {
       original_price: original_price ? parseFloat(original_price) : parseFloat(price) * 2,
       total_stock: parseInt(total_stock, 10),
       end_time,
-      is_featured
+      is_featured,
+      image_url
     });
 
     return res.status(201).json({ message: 'Deal created successfully', deal });

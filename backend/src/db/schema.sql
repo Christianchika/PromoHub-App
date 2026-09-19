@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(150) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   is_admin BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP
 );
 
 -- 2. Deals Table
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS deals (
   brand VARCHAR(100) NOT NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
+  image_url TEXT,
   category VARCHAR(50) DEFAULT 'Flash Sale',
   price DECIMAL(10, 2) NOT NULL,
   original_price DECIMAL(10, 2),

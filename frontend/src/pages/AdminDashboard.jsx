@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   BarChart3, Plus, Edit2, Trash2, ShieldAlert, Ticket, Users, 
   Search, X, CheckCircle, AlertTriangle, Clock, RefreshCw, Flame, ArrowUpRight
 } from 'lucide-react';
 import { EVENT_START_DATE } from '../mockData/deals';
 
-export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
-  const [activeTab, setActiveTab] = useState('deals'); // 'deals', 'claims', 'analytics'
+export default function AdminDashboard({ deals, setDeals, userClaims = [], authToken }) {
+  const [activeTab, setActiveTab] = useState('deals'); // 'deals', 'claims', 'users'
+  const [registeredUsers, setRegisteredUsers] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,10 +21,21 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
   const [formOriginalPrice, setFormOriginalPrice] = useState('');
   const [formTotalStock, setFormTotalStock] = useState('');
   const [formIsFeatured, setFormIsFeatured] = useState(false);
+  const [formImage, setFormImage] = useState('');
+
+  const refreshUsers = () => {
+    if (!authToken) return;
+    fetch('/api/admin/users', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to load users.')))
+      .then(setRegisteredUsers)
+      .catch(() => setRegisteredUsers([]));
+  };
+
+  useEffect(() => { refreshUsers(); }, [authToken]);
 
   // Stats calculation
   const totalDeals = deals.length;
-  const totalClaimsCount = 142 + userClaims.length;
+  const totalClaimsCount = userClaims.length;
   const lowStockDeals = deals.filter(d => d.stock_remaining > 0 && d.stock_remaining <= 5);
   const mostPopularDeal = deals.reduce((max, d) => (d.interested_count > max.interested_count ? d : max), deals[0]);
 
@@ -38,6 +50,7 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
     setFormOriginalPrice('');
     setFormTotalStock('');
     setFormIsFeatured(false);
+    setFormImage('');
     setIsAddModalOpen(true);
   };
 
@@ -52,11 +65,12 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
     setFormOriginalPrice(deal.original_price ? deal.original_price.toString() : '');
     setFormTotalStock(deal.total_stock.toString());
     setFormIsFeatured(deal.is_featured);
+    setFormImage(deal.image_url || '');
     setIsAddModalOpen(true);
   };
 
   // Handle Save (Add or Update deal)
-  const handleSaveDeal = (e) => {
+  const handleSaveDeal = async (e) => {
     e.preventDefault();
     const priceNum = parseFloat(formPrice);
     const origPriceNum = formOriginalPrice ? parseFloat(formOriginalPrice) : priceNum * 2;
@@ -76,11 +90,19 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
             original_price: origPriceNum,
             total_stock: stockNum,
             stock_remaining: Math.min(d.stock_remaining, stockNum),
-            is_featured: formIsFeatured
+            is_featured: formIsFeatured,
+            image_url: formImage
           };
         }
         return d;
       }));
+      if (authToken) {
+        await fetch(`/api/admin/deals/${editingDeal.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ brand: formBrand, title: formTitle, description: formDescription, category: formCategory, price: priceNum, original_price: origPriceNum, total_stock: stockNum, is_featured: formIsFeatured, image_url: formImage })
+        });
+      }
     } else {
       // Add new deal
       const newDeal = {
@@ -96,10 +118,22 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
         start_time: new Date().toISOString(),
         end_time: EVENT_START_DATE,
         is_featured: formIsFeatured,
+        image_url: formImage,
         interested_count: 0,
         is_interested: false
       };
       setDeals(prev => [newDeal, ...prev]);
+      if (authToken) {
+        const response = await fetch('/api/admin/deals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify(newDeal)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDeals(prev => prev.map(deal => deal.id === newDeal.id ? { ...data.deal, price: Number(data.deal.price), original_price: Number(data.deal.original_price) } : deal));
+        }
+      }
     }
 
     setIsAddModalOpen(false);
@@ -249,6 +283,16 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
           >
             Claims Audit Ledger ({totalClaimsCount})
           </button>
+          <button
+            className={`btn ${activeTab === 'users' ? 'btn-amber' : 'btn-secondary'}`}
+            style={{ padding: '8px 16px', fontSize: '14px' }}
+            onClick={() => setActiveTab('users')}
+          >
+            Registered Users ({registeredUsers.length})
+          </button>
+          <button className="btn btn-secondary" onClick={refreshUsers} title="Refresh registered users" style={{ padding: '8px 10px', fontSize: '14px' }}>
+            <RefreshCw size={16} />
+          </button>
         </div>
 
         {activeTab === 'deals' && (
@@ -394,6 +438,26 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
         </div>
       )}
 
+      {activeTab === 'users' && (
+        <div style={{ backgroundColor: '#ffffff', border: '2px solid var(--color-ink-navy)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead><tr style={{ backgroundColor: 'var(--color-ticket-cream)' }}>
+              <th style={{ padding: '14px 16px' }}>NAME</th><th style={{ padding: '14px 16px' }}>EMAIL</th><th style={{ padding: '14px 16px' }}>REGISTERED</th><th style={{ padding: '14px 16px' }}>LAST LOGIN</th><th style={{ padding: '14px 16px' }}>STATUS</th>
+            </tr></thead>
+            <tbody>
+              {registeredUsers.map(user => <tr key={user.id} style={{ borderTop: '1px solid var(--color-slate-grey)' }}>
+                <td style={{ padding: '14px 16px', fontWeight: '600' }}>{user.name}</td>
+                <td style={{ padding: '14px 16px' }}>{user.email}</td>
+                <td style={{ padding: '14px 16px' }}>{user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '14px 16px' }}>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
+                <td style={{ padding: '14px 16px' }}><span className={user.is_logged_in ? 'badge badge-in-stock' : 'badge'}>{user.is_logged_in ? 'LOGGED IN' : 'REGISTERED'}</span></td>
+              </tr>)}
+              {registeredUsers.length === 0 && <tr><td colSpan="5" style={{ padding: '24px', textAlign: 'center' }}>No registered users found.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Add / Edit Deal Modal */}
       {isAddModalOpen && (
         <div style={{
@@ -487,6 +551,23 @@ export default function AdminDashboard({ deals, setDeals, userClaims = [] }) {
                   rows={3}
                   style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius)', border: '2px solid var(--color-ink-navy)', fontFamily: 'var(--font-body)' }}
                 />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Product Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => setFormImage(reader.result);
+                    reader.readAsDataURL(file);
+                  }}
+                  style={{ width: '100%', padding: '8px', border: '2px dashed var(--color-ink-navy)', borderRadius: 'var(--radius)', backgroundColor: '#ffffff' }}
+                />
+                {formImage && <img src={formImage} alt="Product preview" style={{ display: 'block', width: '100%', height: '140px', objectFit: 'contain', marginTop: '8px', backgroundColor: '#ffffff' }} />}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>

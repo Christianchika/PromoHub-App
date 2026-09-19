@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import TicketCard from '../components/TicketCard';
 import ClaimModal from '../components/ClaimModal';
+import { PRODUCT_IMAGES } from '../mockData/deals';
 import { ArrowLeft, ShieldCheck, Award, CheckCircle, AlertTriangle, Ticket, Clock, Percent } from 'lucide-react';
 
-export default function DealDetail({ deal, onBack, onClaimSuccess }) {
+export default function DealDetail({ deal, onBack, onClaimSuccess, authToken }) {
   const [selectedDealForClaim, setSelectedDealForClaim] = useState(null);
   const [currentDeal, setCurrentDeal] = useState(deal);
 
@@ -22,6 +23,7 @@ export default function DealDetail({ deal, onBack, onClaimSuccess }) {
   const stockPercentage = Math.round((currentDeal.stock_remaining / currentDeal.total_stock) * 100);
   const isLowStock = currentDeal.stock_remaining > 0 && currentDeal.stock_remaining <= 5;
   const isSoldOut = currentDeal.stock_remaining === 0;
+  const imageUrl = currentDeal.image_url || PRODUCT_IMAGES[currentDeal.brand];
 
   return (
     <div style={{ maxWidth: '850px', margin: '0 auto' }}>
@@ -55,6 +57,7 @@ export default function DealDetail({ deal, onBack, onClaimSuccess }) {
 
         <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>{currentDeal.title}</h1>
         <p className="text-muted" style={{ fontSize: '16px' }}>{currentDeal.description}</p>
+        {imageUrl && <img src={imageUrl} alt={currentDeal.title} style={{ display: 'block', width: '100%', height: '320px', objectFit: 'contain', marginTop: '18px', backgroundColor: '#ffffff', border: '2px solid var(--color-ink-navy)', borderRadius: 'var(--radius)' }} />}
       </div>
 
       {/* Stock Progress Indicator Bar */}
@@ -150,6 +153,7 @@ export default function DealDetail({ deal, onBack, onClaimSuccess }) {
           deal={selectedDealForClaim}
           onClose={() => setSelectedDealForClaim(null)}
           onConfirmClaim={handleLocalClaimSuccess}
+          authToken={authToken}
         />
       )}
     </div>

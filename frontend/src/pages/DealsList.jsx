@@ -4,7 +4,7 @@ import TicketCard from '../components/TicketCard';
 import ClaimModal from '../components/ClaimModal';
 import { Flame, AlertTriangle, CheckCircle, Search, Filter, RefreshCw, Heart } from 'lucide-react';
 
-export default function DealsList({ deals, setDeals, onViewDetail, onToggleInterest }) {
+export default function DealsList({ deals, setDeals, onViewDetail, onToggleInterest, authToken }) {
   const [filter, setFilter] = useState('all'); // 'all', 'low-stock', 'available', 'featured'
   const [brandFilter, setBrandFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,6 +190,7 @@ export default function DealsList({ deals, setDeals, onViewDetail, onToggleInter
           deal={selectedDealForClaim}
           onClose={() => setSelectedDealForClaim(null)}
           onConfirmClaim={handleClaimSuccess}
+          authToken={authToken}
         />
       )}
     </div>
